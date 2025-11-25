@@ -1,4 +1,8 @@
 - generare il grafo (deadline 21/11)
+    - our file has extension: .osm.pbf (binary file)
+        - osmnx cannot handle it directly, we need to use pyrosm that directly read the binary file, we can't convert it into an xml
+          because the dimension will be too big
+         
     - osmnx.graph.graph_from_xml(param) -> to extract the graph: https://osmnx.readthedocs.io/en/stable/user-reference.html
     - return a multidigraph https://networkx.org/documentation/stable/reference/classes/multidigraph.html#networkx.MultiDiGraph
     - see other things
