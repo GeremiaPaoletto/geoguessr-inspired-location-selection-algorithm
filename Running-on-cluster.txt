@@ -27,3 +27,6 @@ Ho scritto il file necessario per la creazione di un running node: run_graph.sh
 Eseguire i comandi per runnare il working node:
 sbatch run_graph.sh
 squeue -u usernamedei
+
+To see live output updates:
+tail -f output_IL_TUO_JOB_ID.txt
