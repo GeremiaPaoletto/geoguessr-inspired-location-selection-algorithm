@@ -9,7 +9,6 @@ import sys
 import psutil
 import os
 
-# --- CONFIGURAZIONE CLUSTER ---
 FP = "bremen-251019.osm.pbf" 
 OUTPUT_PKL = "bremen_processed_graph.pkl"
 NETWORK_TYPE = "driving"
@@ -17,44 +16,119 @@ NETWORK_TYPE = "driving"
 def log_resource_usage():
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / (1024 ** 3)  # GB
-    print(f"   [SYS] RAM Utilizzata: {mem:.2f} GB")
+    print(f"   [SYS] RAM utilized: {mem:.2f} GB")
 
-print(f"--- START JOB: Elaborazione OSM su Cluster Node ---")
+print(f"--- START JOB: Elaboration OSM on cluster node ---")
 start_global = time.time()
 
 # ---------------------------------------------------------
-# 1. CARICAMENTO AD ALTE PRESTAZIONI (Pyrosm)
+# 1. LOADING THE PBF FILE (Pyrosm)
 # ---------------------------------------------------------
-print("\n[1/4] Ingestione PBF via Pyrosm...")
+print("\n[1/4] Processing PBF via Pyrosm...")
 t0 = time.time()
 
 osm = pyrosm.OSM(FP)
 
-# --- CORREZIONE QUI ---
-# Step 1: Estrai Nodi e Archi come GeoDataFrames
-print("      Estraendo nodi e archi dal PBF...")
+# Extract nodes and edges with original OSM IDs, in GeoDataFrame format
+print("      Extracting nodes and edges from PBF...")
 nodes_gdf, edges_gdf = osm.get_network(
     network_type=NETWORK_TYPE, 
     nodes=True
 )
 
-# Step 2: Converti i DataFrame in Grafo NetworkX
-print("      Convertendo in NetworkX...")
+# Converting the DataFrames to a NetworkX MultiDiGraph
+print("      Converting to Networkx...")
 G_nx_raw = osm.to_graph(
     nodes_gdf, 
     edges_gdf, 
     graph_type="networkx",
     network_type=NETWORK_TYPE,
-    osmnx_compatible=True  # Fondamentale: imposta l'indice dei nodi all'ID OSM originale
+    osmnx_compatible=True  # Set nodes indeces to OSM IDs for compatibility with OSMnx
 )
-# ----------------------
 
-print(f"   Grafo Grezzo caricato in {time.time()-t0:.2f}s")
-print(f"   Nodi: {len(G_nx_raw.nodes):,}, Archi: {len(G_nx_raw.edges):,}")
+
+print(f"   Raw graph loaded in time {time.time()-t0:.2f}s")
+print(f"   Nodes: {len(G_nx_raw.nodes):,}, Edges: {len(G_nx_raw.edges):,}")
 log_resource_usage()
 
 # Liberiamo memoria dai dataframe intermedi
 del nodes_gdf, edges_gdf
+
+
+# ALTERNATIVA PIU EFFICIENTE SECONDO GEMINI, DA VERIFICARE
+# # ---------------------------------------------------------
+# # 1. LOADING & MANUAL GRAPH BUILD (Memory Optimized)
+# # ---------------------------------------------------------
+# print("\n[1/4] Processing PBF via Pyrosm (Optimized)...")
+# t0 = time.time()
+
+# osm = pyrosm.OSM(FP)
+
+# # A. Filtro "Intelligente": Per GeoGuessr non ci servono strade private o agricole.
+# # Riduciamo il dataset alla fonte.
+# custom_filter = {
+#     "highway": [
+#         "motorway", "trunk", "primary", "secondary", "tertiary", 
+#         "unclassified", "residential", "motorway_link", "trunk_link",
+#         "primary_link", "secondary_link", "tertiary_link"
+#     ]
+# }
+
+# print("      Extracting ONLY edges (skipping node table)...")
+# # TRUCCO: nodes=False. Scarichiamo solo gli archi con la loro geometria.
+# # Risparmiamo GB di RAM non caricando i metadati di milioni di punti.
+# edges_gdf = osm.get_network(
+#     network_type="driving", 
+#     nodes=False,
+#     extra_attributes=["highway", "maxspeed", "oneway", "lanes", "name"]
+# )
+
+# # Filtriamo per tipo di strada (opzionale ma consigliato per risparmiare altro 20%)
+# edges_gdf = edges_gdf[edges_gdf["highway"].isin(custom_filter["highway"])]
+
+# print(f"      Edges loaded: {len(edges_gdf):,} rows. Building Graph...")
+
+# # B. Costruzione Manuale del Grafo NetworkX
+# # Usiamo from_pandas_edgelist che è molto efficiente
+# G_nx_raw = nx.from_pandas_edgelist(
+#     edges_gdf, 
+#     source='u', 
+#     target='v', 
+#     edge_attr=True, 
+#     create_using=nx.MultiDiGraph
+# )
+
+# # C. Recupero Coordinate (Cruciale per OSMnx simplify)
+# # Poiché non abbiamo caricato i nodi, dobbiamo "indovinare" le coordinate
+# # guardando le estremità delle geometrie degli archi (LineStrings).
+# print("      Recovering node coordinates from edge geometries...")
+
+# node_coords = {}
+# # Iteriamo sugli archi per popolare le coordinate dei nodi u e v
+# # Nota: questo loop impiega qualche minuto ma salva GB di RAM.
+# for row in edges_gdf.itertuples(index=False):
+#     # row.geometry è una shapely LineString
+#     # row.u è il nodo start, row.v è il nodo end
+#     if hasattr(row, "geometry") and row.geometry:
+#         coords = row.geometry.coords
+#         if row.u not in node_coords:
+#             node_coords[row.u] = {"x": coords[0][0], "y": coords[0][1]}
+#         if row.v not in node_coords:
+#             node_coords[row.v] = {"x": coords[-1][0], "y": coords[-1][1]}
+
+# # Assegnamo le coordinate al grafo
+# nx.set_node_attributes(G_nx_raw, node_coords)
+
+# # Impostiamo il CRS manualmente (necessario per osmnx)
+# G_nx_raw.graph['crs'] = 'epsg:4326'
+
+# print(f"   Raw graph loaded in time {time.time()-t0:.2f}s")
+# print(f"   Nodes: {len(G_nx_raw.nodes):,}, Edges: {len(G_nx_raw.edges):,}")
+# log_resource_usage()
+
+# # Pulizia immediata
+# del edges_gdf, node_coords, osm
+
 
 # ---------------------------------------------------------
 # 2. SEMPLIFICAZIONE TOPOLOGICA (OSMnx)
