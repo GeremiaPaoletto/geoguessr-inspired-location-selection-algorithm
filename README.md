@@ -30,7 +30,12 @@ scripts for reference.
 
 ## Results
 
-`plots/` contains the evaluation plots comparing sampling strategies
+Communities detected by Leiden on the Nord-Est Italy road network (100 largest
+colored, rest in grey):
+
+![Graph communities, 100 largest colored](plots/graph_communities_largest100.png)
+
+`plots/` also contains the evaluation plots comparing sampling strategies
 (coverage, diversity, balance, efficiency — see `reports/FinalReportLFN.pdf`
 for the full write-up and discussion of the results).
 
