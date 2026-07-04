@@ -1,0 +1,10 @@
+pyrosm
+osmnx
+networkx
+python-igraph
+pandas
+numpy
+scipy
+scikit-learn
+matplotlib
+psutil
