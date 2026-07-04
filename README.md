@@ -36,15 +36,15 @@ colored, rest in grey):
 ![Graph communities, 100 largest colored](plots/graph_communities_largest100.png)
 
 `plots/` also contains the evaluation plots comparing sampling strategies
-(coverage, diversity, balance, efficiency — see `reports/FinalReportLFN.pdf`
+(coverage, diversity, balance, efficiency, see `reports/FinalReportLFN.pdf`
 for the full write-up and discussion of the results).
 
 ## Running it
 
 Raw `.osm.pbf` extracts are not included in the repo (tens of MB to several
-GB) — download one from [Geofabrik](https://download.geofabrik.de/). Bremen
+GB), download one from [Geofabrik](https://download.geofabrik.de/). Bremen
 is small enough to run locally end-to-end; larger regions (e.g. Nord-Est
-Italy) need a machine with a lot of RAM — we ran those on a SLURM cluster,
+Italy) need a machine with a lot of RAM, we ran those on a SLURM cluster,
 see `src/run_*.sh` for the job scripts and `reports/Running-on-cluster.txt`
 for cluster setup notes.
 
